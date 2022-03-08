@@ -1,0 +1,17 @@
+{
+  "name": "@bm-internal/typescript",
+  "version": "0.0.0",
+  "description": "> TODO: description",
+  "author": "wangjie <wangjie@smodock.com>",
+  "homepage": "",
+  "license": "ISC",
+  "main": "lib/typescript.js",
+  "dependencies": {
+    "minimal": "^0.2.1",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-consistent-codestyle": "^1.15.1"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npm.taobao.org/"
+  }
+}

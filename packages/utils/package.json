@@ -1,0 +1,23 @@
+{
+  "name": "@bm/utils",
+  "version": "0.0.0",
+  "description": "> TODO: description",
+  "author": "wangjie <wangjie@smodock.com>",
+  "homepage": "",
+  "license": "ISC",
+  "main": "dist/index.js",
+  "module": "esm/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "run-p build:cjs build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:dev": "run-s build",
+    "build:es5": "yarn build:cjs # *** backwards compatibility - remove in v7 ***",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@bm/types": "^0.0.0"
+  }
+}
