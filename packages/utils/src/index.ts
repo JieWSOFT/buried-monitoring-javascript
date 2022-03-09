@@ -7,7 +7,9 @@ export * from './object';
 export * from './misc';
 export * from './time'
 export * from './supports'
+export * from './string'
 export * from './stacktrace'
+export * from './syncpromise'
 export * from './instrument'
 export * from './dsn'
 export * from './polyfill'

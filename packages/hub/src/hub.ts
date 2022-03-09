@@ -150,13 +150,12 @@ export class Hub implements HubInterface {
     }
     captureException(exception: any, hint?: EventHint): string {
         const eventId = (this._lastEventId = uuid4());
-        console.log(this._lastEventId, eventId)
         let finalHint = hint;
 
-        // If there's no explicit hint provided, mimic the same thing that would happen
-        // in the minimal itself to create a consistent behavior.
-        // We don't do this in the client, as it's the lowest level API, and doing this,
-        // would prevent user from having full control over direct calls.
+        // 如果没有提供明确的提示，就模仿会发生的同样的事情。
+        // 在最小的本身中，以创建一个一致的行为。
+        // 我们不在客户端这样做，因为它是最底层的API，而且这样做。
+        // 会妨碍用户对直接调用的完全控制。
         if (!hint) {
             let syntheticException: Error;
             try {
@@ -180,12 +179,22 @@ export class Hub implements HubInterface {
         throw new Error("Method not implemented.");
     }
     captureEvent(event: Event, hint?: EventHint): string {
-        console.log(event, hint)
-        throw new Error("Method not implemented.");
+        const eventId = uuid4();
+        if (event.type !== 'transaction') {
+            this._lastEventId = eventId;
+        }
+
+        this._invokeClient('captureEvent', event, {
+            ...hint,
+            event_id: eventId,
+        });
+        return eventId;
     }
+    
     lastEventId(): string | undefined {
-        throw new Error("Method not implemented.");
+        return this._lastEventId;
     }
+
     setUser(user: User | null): void {
         console.log(user)
         throw new Error("Method not implemented.");

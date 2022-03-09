@@ -135,7 +135,7 @@ export function addExceptionTypeValue(event: Event, value?: string, type?: strin
 }
 
 /**
- * Adds exception mechanism data to a given event. Uses defaults if the second parameter is not passed.
+ * 为一个给定的事件添加异常机制数据。如果没有传递第二个参数，则使用默认值。
  *
  * @param event The event to modify.
  * @param newMechanism Mechanism data to add to the event.

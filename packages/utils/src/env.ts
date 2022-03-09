@@ -12,7 +12,7 @@ declare const __BM_BROWSER_BUNDLE__: boolean | undefined;
 declare const __BM_NO_DEBUG__: boolean | undefined;
 
 /**
- * Figures out if we're building with debug functionality.
+ * 弄清我们是否在用调试功能进行构建。
  *
  * @returns true if this is a debug build
  */
@@ -21,7 +21,7 @@ export function isDebugBuild(): boolean {
 }
 
 /**
- * Figures out if we're building a browser bundle.
+ * 计算出我们是否正在建立一个浏览器捆绑包。
  *
  * @returns true if this is a browser bundle build.
  */

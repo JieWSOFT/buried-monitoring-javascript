@@ -84,7 +84,7 @@ export interface Options {
   /** A global sample rate to apply to all events (0 - 1). */
   sampleRate?: number;
 
-  /** Attaches stacktraces to pure capture message / log integrations */
+  /***将堆栈痕迹附加到纯捕获消息/日志集成 */
   attachStacktrace?: boolean;
 
   /** Maxium number of chars a single value can have before it will be truncated. */

@@ -3,6 +3,8 @@ import {
     CaptureContext,
     Context,
     Contexts,
+    Event,
+    EventHint,
     EventProcessor,
     Extras,
     Primitive,
@@ -13,8 +15,8 @@ import {
     Transaction,
     User,
 } from "@bm/types"
-import { Session } from "@bm/types/dist/session";
-import { getGlobalObject } from "@bm/utils";
+import { getGlobalObject, isThenable, SyncPromise } from "@bm/utils";
+import { Session } from ".";
 
 
 export class Scope implements ScopeInterface {
@@ -59,6 +61,12 @@ export class Scope implements ScopeInterface {
 
     /** Request Mode Session Status */
     protected _requestSession?: RequestSession;
+
+    /**
+    * 一个存放数据的地方，这些数据在SDK的事件处理管道中的某个点是需要的，但不应该被送到
+    * 发送给BM
+    */
+    protected _sdkProcessingMetadata?: { [key: string]: unknown } = {};
 
     /**
  * Inherit values from the parent scope.
@@ -186,19 +194,119 @@ export class Scope implements ScopeInterface {
         throw new Error("Method not implemented.");
     }
 
+
     /**
-   * This will be called on every set call.
+    *将当前的上下文和指纹应用于事件。
+   * 注意，面包屑将由客户端添加。
+   * 如果事件已经有了面包屑，我们不会合并它们。
+   * @param event Event
+   * @param hint May contain additional information about the original exception.
+   * @hidden
    */
+    public applyToEvent(event: Event, hint?: EventHint): PromiseLike<Event | null> {
+        if (this._extra && Object.keys(this._extra).length) {
+            event.extra = { ...this._extra, ...event.extra };
+        }
+        if (this._tags && Object.keys(this._tags).length) {
+            event.tags = { ...this._tags, ...event.tags };
+        }
+        if (this._user && Object.keys(this._user).length) {
+            event.user = { ...this._user, ...event.user };
+        }
+        if (this._contexts && Object.keys(this._contexts).length) {
+            event.contexts = { ...this._contexts, ...event.contexts };
+        }
+        if (this._level) {
+            event.level = this._level;
+        }
+        if (this._transactionName) {
+            event.transaction = this._transactionName;
+        }
+        // 我们要为普通事件设置跟踪上下文，只有当事件上还没有
+        // 事件上有一个跟踪上下文。有一个产品特性，我们把
+        // 错误与交易，它依赖于此。
+        if (this._span) {
+            event.contexts = { trace: this._span.getTraceContext(), ...event.contexts };
+            const transactionName = this._span.transaction && this._span.transaction.name;
+            if (transactionName) {
+                event.tags = { transaction: transactionName, ...event.tags };
+            }
+        }
+
+        this._applyFingerprint(event);
+
+        event.breadcrumbs = [...(event.breadcrumbs || []), ...this._breadcrumbs];
+        event.breadcrumbs = event.breadcrumbs.length > 0 ? event.breadcrumbs : undefined;
+
+        event.sdkProcessingMetadata = this._sdkProcessingMetadata;
+
+        return this._notifyEventProcessors([...getGlobalEventProcessors(), ...this._eventProcessors], event, hint);
+    }
+
+    /**
+    *这将在{@link applyToEvent}完成后被调用。
+    */
+    protected _notifyEventProcessors(
+        processors: EventProcessor[],
+        event: Event | null,
+        hint?: EventHint,
+        index: number = 0,
+    ): PromiseLike<Event | null> {
+        return new SyncPromise<Event | null>((resolve, reject) => {
+            const processor = processors[index];
+            if (event === null || typeof processor !== 'function') {
+                resolve(event);
+            } else {
+                const result = processor({ ...event }, hint) as Event | null;
+                if (isThenable(result)) {
+                    void (result as PromiseLike<Event | null>)
+                        .then(final => this._notifyEventProcessors(processors, final, hint, index + 1).then(resolve))
+                        .then(null, reject);
+                } else {
+                    void this._notifyEventProcessors(processors, result, hint, index + 1)
+                        .then(resolve)
+                        .then(null, reject);
+                }
+            }
+        });
+    }
+
+    /**
+    * 这将在每一次集合调用时被调用。 
+    */
     protected _notifyScopeListeners(): void {
-        // We need this check for this._notifyingListeners to be able to work on scope during updates
-        // If this check is not here we'll produce endless recursion when something is done with the scope
-        // during the callback.
+        // 我们需要这个检查，以便this._notifyingListeners能够在更新期间对作用域进行工作。
+        // 如果这个检查不在这里，当对作用域做某些事情时，我们会产生无休止的递归。
+        // 在回调过程中。
         if (!this._notifyingListeners) {
             this._notifyingListeners = true;
             this._scopeListeners.forEach(callback => {
                 callback(this);
             });
             this._notifyingListeners = false;
+        }
+    }
+
+    /**
+    * 如果有指纹的话，将范围中的指纹应用到事件中。
+    * 如果有的话就用消息代替，或者去掉空的指纹。
+    */
+    private _applyFingerprint(event: Event): void {
+        // Make sure it's an array first and we actually have something in place
+        event.fingerprint = event.fingerprint
+            ? Array.isArray(event.fingerprint)
+                ? event.fingerprint
+                : [event.fingerprint]
+            : [];
+
+        // If we have something on the scope, then merge it with event
+        if (this._fingerprint) {
+            event.fingerprint = event.fingerprint.concat(this._fingerprint);
+        }
+
+        // If we have no data at all, remove empty array default
+        if (event.fingerprint && !event.fingerprint.length) {
+            delete event.fingerprint;
         }
     }
 }
